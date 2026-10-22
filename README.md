@@ -521,12 +521,28 @@ gtkwave fsm_simulation.vcd
 
 ---
 
-## 👥 Team & Responsibilities (CS203)
+## 👥 Team & Individual Contributions (CS203)
 
 * **Instructor:** Dr. Geeta — *Department of Computer Science & Engineering*
-* **Team Members:**
-  * **Tanmay Kumar Jayant (2025CSB1263):** Basic FSM Architecture, State Transitions & Integration
-  * **Ayush Awasthi (2025CSB1311):** Threat Injection Engine, Dynamic XOR Masks & Verification
-  * **Uttkarsh Goyal (2025CSB1394):** Attack Detection (Parity Checker & DMR Comparator)
-  * **Freddin (2025CSB1416) [Lead]:** Rectification of Attack (Extended Hamming SECDED 8,4 & Recovery)
-  * **Dane Prince Daniel (2025CSB1548):** Timing, Hazard Analysis, RTL Synthesis & Waveform Verification
+* **Team Members & Responsibilities:**
+  * **Freddin (2025CSB1416) [Lead]:**
+    * Designed and implemented **Solutions 1 through 4** in Verilog RTL and C++:
+      * Solution 1: Input-Stream Running Parity Accumulator
+      * Solution 2: Parity Protected State Register with Sticky Alarm
+      * Solution 3: Increased Hamming Distance ($d_{\min} \ge 2$) Even-Weight State Encoding
+      * Solution 4: Extended Hamming $(8, 4)$ SECDED with Dynamic Error Rectification
+  * **Uttkarsh Goyal (2025CSB1394):**
+    * Designed and implemented **Solutions 5 and 6** in Verilog RTL and C++:
+      * Solution 5: Dual Modular Redundancy (DMR) with Fail-Secure Comparator
+      * Solution 6: Triple Modular Redundancy (TMR) with Majority Voting Logic
+  * **Tanmay Kumar Jayant (2025CSB1263):**
+    * Baseline FSM architecture and state transition pipeline.
+    * Designed the top-level integration wrapper [`Combined Testbench/design.sv`](./Combined%20Testbench/design.sv) (`secure_fsm_top`) orchestrating all countermeasure modules.
+  * **Ayush Awasthi (2025CSB1311):**
+    * Developed the 202-fault exhaustive testbench suite in [`Combined Testbench/testbench.sv`](./Combined%20Testbench/testbench.sv).
+    * Executed the **Attack Analysis** (evaluating FDR, FMR, and ASR across all 9 operating states).
+    * Co-authored the multi-sheet benchmark Excel workbook (`CS203_Fault_Resilience_Benchmark_Report.xlsx`).
+  * **Dane Prince Daniel (2025CSB1548):**
+    * Conducted the **Time and Hardware Area Analysis** (evaluating flip-flop overhead, gate complexities, and critical path timings).
+    * Co-authored the multi-sheet benchmark Excel workbook (`CS203_Fault_Resilience_Benchmark_Report.xlsx`).
+    * Timing verification and waveform hazard inspection.
