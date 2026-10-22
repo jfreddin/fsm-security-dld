@@ -23,10 +23,10 @@ module auth_fsm (
 
     always @(*) begin
         case (state)
-            IDLE:    next_state = (auth_in) ? GOT_1   : ERR_1;
-            GOT_1:   next_state = (!auth_in)? GOT_10  : ERR_2;
-            GOT_10:  next_state = (auth_in) ? GOT_101 : ERR_3;
-            GOT_101: next_state = (!auth_in)? SUCCESS : LOCKED;
+            IDLE:    next_state = (auth_in)  ? GOT_1   : ERR_1;
+            GOT_1:   next_state = (!auth_in) ? GOT_10  : ERR_2;
+            GOT_10:  next_state = (auth_in)  ? GOT_101 : ERR_3;
+            GOT_101: next_state = (!auth_in) ? SUCCESS : LOCKED;
             
             ERR_1:   next_state = ERR_2;
             ERR_2:   next_state = ERR_3;

@@ -2,7 +2,7 @@ module auth_fsm (
     input clk,
     input rst_n,
     input auth_in,
-    input [4:0] fault_mask, // [4]: state_parity, [3:0]: state[3:0]. Supports 0, 1, and 'x' (metastable)
+    input [4:0] fault_mask,
     output reg access_granted,
     output [3:0] state_out,
     output state_parity_out,
@@ -25,11 +25,8 @@ module auth_fsm (
     reg state_parity;
     reg alarm;
 
-
     wire is_metastable = $isunknown({state_parity, state});
-
     wire next_state_parity = ^next_state;
-
     wire state_parity_valid = (!is_metastable) && (^state === state_parity);
 
     assign state_out           = state;
@@ -38,16 +35,15 @@ module auth_fsm (
     assign metastable_detected = is_metastable;
     assign alarm_out           = alarm;
 
-
     always @(*) begin
         if (alarm || is_metastable) begin
-            next_state = LOCKED; // Security trip - immediately lock if alarm triggered
+            next_state = LOCKED;
         end else begin
             case (state)
-                IDLE:    next_state = (auth_in) ? GOT_1   : ERR_1;
-                GOT_1:   next_state = (!auth_in)? GOT_10  : ERR_2;
-                GOT_10:  next_state = (auth_in) ? GOT_101 : ERR_3;
-                GOT_101: next_state = (!auth_in)? SUCCESS : LOCKED;
+                IDLE:    next_state = (auth_in)  ? GOT_1   : ERR_1;
+                GOT_1:   next_state = (!auth_in) ? GOT_10  : ERR_2;
+                GOT_10:  next_state = (auth_in)  ? GOT_101 : ERR_3;
+                GOT_101: next_state = (!auth_in) ? SUCCESS : LOCKED;
                 
                 ERR_1:   next_state = ERR_2;
                 ERR_2:   next_state = ERR_3;
@@ -61,7 +57,6 @@ module auth_fsm (
         end
     end
 
-    // Sequential logic with parity protection & sticky alarm latch
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state        <= IDLE;

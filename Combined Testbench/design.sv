@@ -1,21 +1,5 @@
-// =============================================================================
-// Digital Logic Design - CS203: Fault Resilient Secure Finite State Machine
-// Project Proposal Implementation: Multi-Defense Top-Level RTL System
-// Team Members:
-//   - Tanmay Kumar Jayant (2025CSB1263): Basic FSM & Integration
-//   - Ayush Awasthi       (2025CSB1311): Injection of Threat (XOR Masks)
-//   - Uttkarsh Goyal      (2025CSB1394): Attack Detection (Parity & DMR)
-//   - Freddin             (2025CSB1416): Rectification of Attack (ECC & Recovery)
-//   - Dane Prince Daniel  (2025CSB1548): Analysis & Synthesis
-// =============================================================================
-
 `timescale 1ns / 1ps
 
-// -----------------------------------------------------------------------------
-// 1. Basic Sequential Sequence Detector Core (auth_fsm)
-// Sequence: 1 -> 0 -> 1 -> 0 (IDLE -> GOT_1 -> GOT_10 -> GOT_101 -> SUCCESS)
-// Constant-time error pipeline: ERR_1 -> ERR_2 -> ERR_3 -> LOCKED
-// -----------------------------------------------------------------------------
 module auth_fsm (
     input clk,
     input rst_n,
@@ -39,15 +23,13 @@ module auth_fsm (
     reg [3:0] state, next_state;
     assign state_out = state;
 
-    // Extended Hamming (8,4) SECDED Generator
-    // d[0]=state[0], d[1]=state[1], d[2]=state[2], d[3]=state[3]
     function [3:0] enc(input [3:0] d);
         reg p1, p2, p4;
         begin
             p1 = d[0] ^ d[1] ^ d[3];
             p2 = d[0] ^ d[2] ^ d[3];
             p4 = d[1] ^ d[2] ^ d[3];
-            enc = {^{d, p1, p2, p4}, p4, p2, p1}; // {p0, p4, p2, p1}
+            enc = {^{d, p1, p2, p4}, p4, p2, p1};
         end
     endfunction
 
@@ -72,18 +54,15 @@ module auth_fsm (
             parity_q <= 1'b0;                 
             ecc_q    <= 4'b0000;              
         end else begin
-            state    <= next_state ^ fault_mask;  // XOR Fault Injection Interface
-            parity_q <= ^next_state;              // Next-state Parity Register
-            ecc_q    <= enc(next_state);          // Next-state ECC Register
+            state    <= next_state ^ fault_mask;
+            parity_q <= ^next_state;
+            ecc_q    <= enc(next_state);
         end
     end
 
     always @(*) access_granted = (state == SUCCESS);
 endmodule
 
-// -----------------------------------------------------------------------------
-// 2. Dual Modular Redundancy (DMR) Comparison Module
-// -----------------------------------------------------------------------------
 module dmr_detector (
     input  [3:0] state_a,
     input  [3:0] state_b,
@@ -92,9 +71,6 @@ module dmr_detector (
     assign dmr_err = (state_a != state_b);
 endmodule
 
-// -----------------------------------------------------------------------------
-// 3. Parity Invariant Checking Module
-// -----------------------------------------------------------------------------
 module parity_detector (
     input  [3:0] state_out,
     input        parity_q,
@@ -103,9 +79,6 @@ module parity_detector (
     assign parity_err = (^state_out) ^ parity_q;
 endmodule
 
-// -----------------------------------------------------------------------------
-// 4. Triple Modular Redundancy (TMR) Bitwise Majority Voter & Discrepancy Flag
-// -----------------------------------------------------------------------------
 module tmr_voter (
     input  [3:0] a, b, c,
     output [3:0] voted,
@@ -117,9 +90,6 @@ module tmr_voter (
     assign faulty  = {c != voted, b != voted, a != voted};
 endmodule
 
-// -----------------------------------------------------------------------------
-// 5. Extended Hamming SECDED Detection & Rectification Module (Freddin)
-// -----------------------------------------------------------------------------
 module ecc_detector (
     input  [3:0] state_out,
     input  [3:0] ecc_q,
@@ -137,10 +107,10 @@ module ecc_detector (
 
     reg [3:0] pos;
     always @(*) case (syn)
-        3'd3: pos = 4'b0001; // Bit 0 error
-        3'd5: pos = 4'b0010; // Bit 1 error
-        3'd6: pos = 4'b0100; // Bit 2 error
-        3'd7: pos = 4'b1000; // Bit 3 error
+        3'd3: pos = 4'b0001;
+        3'd5: pos = 4'b0010;
+        3'd6: pos = 4'b0100;
+        3'd7: pos = 4'b1000;
         default: pos = 4'b0000;
     endcase
 
@@ -148,12 +118,9 @@ module ecc_detector (
     assign ecc_corr  = overall & (pos != 4'b0000);        
     assign ecc_unc   = ecc_err & ~ecc_corr;               
     assign ecc_pos   = ecc_corr ? pos : 4'b0000;
-    assign ecc_state = state_out ^ ecc_pos; // Dynamically rectified state
+    assign ecc_state = state_out ^ ecc_pos;
 endmodule
 
-// -----------------------------------------------------------------------------
-// 6. Top-Level Multi-Defense Integration System Wrapper (secure_fsm_top)
-// -----------------------------------------------------------------------------
 module secure_fsm_top (
     input clk,
     input rst_n,
@@ -176,39 +143,25 @@ module secure_fsm_top (
     wire [3:0] state_b, state_c, ecc_a;
     wire       parity_a;
 
-    // FSM Instance A: Target FSM under active fault injection (Ayush)
-    auth_fsm fsm_a (
-        .clk(clk), .rst_n(rst_n), .auth_in(auth_in),
-        .fault_mask(fault_mask), .access_granted(access_granted),
-        .state_out(state_out), .parity_q(parity_a), .ecc_q(ecc_a)
-    );
+    auth_fsm fsm_a (.clk(clk), .rst_n(rst_n), .auth_in(auth_in),
+                    .fault_mask(fault_mask), .access_granted(access_granted),
+                    .state_out(state_out), .parity_q(parity_a), .ecc_q(ecc_a));
 
-    // FSM Instance B: Redundant Golden Core (mask=0)
-    auth_fsm fsm_b (
-        .clk(clk), .rst_n(rst_n), .auth_in(auth_in),
-        .fault_mask(4'b0000), .access_granted(),
-        .state_out(state_b), .parity_q(), .ecc_q()
-    );
+    auth_fsm fsm_b (.clk(clk), .rst_n(rst_n), .auth_in(auth_in),
+                    .fault_mask(4'b0000), .access_granted(),
+                    .state_out(state_b), .parity_q(), .ecc_q());
 
-    // FSM Instance C: Redundant Golden Core (mask=0)
-    auth_fsm fsm_c (
-        .clk(clk), .rst_n(rst_n), .auth_in(auth_in),
-        .fault_mask(4'b0000), .access_granted(),
-        .state_out(state_c), .parity_q(), .ecc_q()
-    );
+    auth_fsm fsm_c (.clk(clk), .rst_n(rst_n), .auth_in(auth_in),
+                    .fault_mask(4'b0000), .access_granted(),
+                    .state_out(state_c), .parity_q(), .ecc_q());
 
-    // Attack Detection Modules (Uttkarsh)
     dmr_detector    u_dmr (.state_a(state_out), .state_b(state_b), .dmr_err(dmr_err));
     parity_detector u_par (.state_out(state_out), .parity_q(parity_a), .parity_err(parity_err));
-
-    // Attack Masking & Rectification Modules (Freddin & Dane)
     tmr_voter       u_tmr (.a(state_out), .b(state_b), .c(state_c),
                            .voted(voted_state), .tmr_err(tmr_err), .faulty(tmr_faulty));
     ecc_detector    u_ecc (.state_out(state_out), .ecc_q(ecc_a), .ecc_err(ecc_err),
                            .ecc_corr(ecc_corr), .ecc_unc(ecc_unc),
                            .ecc_pos(ecc_pos), .ecc_state(ecc_state));
 
-    // Aggregated Security Telemetry
     assign attack_detected = dmr_err | parity_err | tmr_err | ecc_err;
-
 endmodule

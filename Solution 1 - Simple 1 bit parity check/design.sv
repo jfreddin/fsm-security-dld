@@ -2,7 +2,7 @@ module auth_fsm (
     input clk,
     input rst_n,
     input auth_in,
-    input [4:0] fault_mask, // 5-bit mask: supports clean bit-flips (0/1) AND laser metastability ('x')
+    input [4:0] fault_mask,
     output reg access_granted,
     output [3:0] state_out,
     output parity_out,
@@ -38,10 +38,10 @@ module auth_fsm (
             next_state = LOCKED;
         end else begin
             case (state)
-                IDLE:    next_state = (auth_in) ? GOT_1   : ERR_1;
-                GOT_1:   next_state = (!auth_in)? GOT_10  : ERR_2;
-                GOT_10:  next_state = (auth_in) ? GOT_101 : ERR_3;
-                GOT_101: next_state = (!auth_in)? SUCCESS : LOCKED;
+                IDLE:    next_state = (auth_in)  ? GOT_1   : ERR_1;
+                GOT_1:   next_state = (!auth_in) ? GOT_10  : ERR_2;
+                GOT_10:  next_state = (auth_in)  ? GOT_101 : ERR_3;
+                GOT_101: next_state = (!auth_in) ? SUCCESS : LOCKED;
                 
                 ERR_1:   next_state = ERR_2;
                 ERR_2:   next_state = ERR_3;
@@ -55,18 +55,15 @@ module auth_fsm (
         end
     end
 
-    // Sequential logic: 4 DFFs for state + 1 DFF for parity + 1 DFF for sticky alarm
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state  <= IDLE;
             parity <= 1'b0;
             alarm  <= 1'b0;
         end else begin
-            // XOR with fault_mask: if fault_mask bit is 'x', flip-flop stores 'x' (metastable)!
             state  <= (next_state ^ fault_mask[3:0]);
             parity <= (parity ^ auth_in) ^ fault_mask[4];
             
-            // Trip and latch alarm if metastability or corrupted state is detected
             if (is_metastable)
                 alarm <= 1'b1;
         end

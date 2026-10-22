@@ -10,36 +10,18 @@ module testbench;
     integer s, m, pass = 0, fail = 0, false_alarms = 0;
     integer n_faults = 0, dmr_hits = 0, par_hits = 0, tmr_hits = 0, ecc_hits = 0, any_hits = 0;
     integer tmr_fix = 0, ecc_fix = 0, ecc_unc_n = 0;
-    integer current_section = 1;
 
-    secure_fsm_top dut (
-        .clk(clk), .rst_n(rst_n), .auth_in(auth_in), .fault_mask(fault_mask),
+    secure_fsm_top dut (.clk(clk), .rst_n(rst_n), .auth_in(auth_in), .fault_mask(fault_mask),
         .access_granted(access_granted), .state_out(state_out),
         .dmr_err(dmr_err), .parity_err(parity_err),
         .tmr_err(tmr_err), .tmr_faulty(tmr_faulty), .voted_state(voted_state),
         .ecc_err(ecc_err), .ecc_corr(ecc_corr), .ecc_unc(ecc_unc),
-        .ecc_pos(ecc_pos), .ecc_state(ecc_state), .attack_detected(attack_detected)
-    );
+        .ecc_pos(ecc_pos), .ecc_state(ecc_state), .attack_detected(attack_detected));
 
     initial begin clk = 0; forever #5 clk = ~clk; end
 
     function integer wt(input [3:0] x);
         wt = x[0] + x[1] + x[2] + x[3];
-    endfunction
-
-    function [63:0] get_state_name(input integer idx);
-        case (idx)
-            0: get_state_name = "IDLE";
-            1: get_state_name = "GOT_1";
-            2: get_state_name = "GOT_10";
-            3: get_state_name = "GOT_101";
-            4: get_state_name = "SUCCESS";
-            5: get_state_name = "ERR_1";
-            6: get_state_name = "ERR_2";
-            7: get_state_name = "ERR_3";
-            8: get_state_name = "LOCKED";
-            default: get_state_name = "UNKNOWN";
-        endcase
     endfunction
 
     task reset_fsm;
@@ -76,11 +58,9 @@ module testbench;
         end
     endtask
 
-    task check_fault(input [3:0] mask, input integer state_idx);
+    task check_fault(input [3:0] mask);
         reg [3:0] exp;
         reg ok;
-        reg tmr_ok;
-        reg ecc_ok;
         begin
             exp = state_out ^ mask;
             n_faults = n_faults + 1;
@@ -92,9 +72,6 @@ module testbench;
             if (voted_state === exp) tmr_fix = tmr_fix + 1;
             if (ecc_state === exp)   ecc_fix = ecc_fix + 1;
             if (ecc_unc)             ecc_unc_n = ecc_unc_n + 1;
-
-            tmr_ok = (voted_state === exp);
-            ecc_ok = (ecc_state === exp);
 
             ok = (dmr_err === 1'b1) && (parity_err === ^mask)
               && (tmr_err === 1'b1) && (tmr_faulty === 3'b001) && (voted_state === exp)
@@ -111,20 +88,12 @@ module testbench;
                          mask, state_out, exp, dmr_err, parity_err, tmr_err, tmr_faulty, voted_state,
                          ecc_err, ecc_corr, ecc_unc, ecc_pos);
             end
-
-            // Structured CSV/Machine-readable export line for automated extraction
-            $display("CSV_DATA|%0d|%0d|%s|%b|%0d|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b|%b",
-                     n_faults, current_section, get_state_name(state_idx), mask, wt(mask),
-                     exp, state_out, access_granted, dmr_err, parity_err,
-                     tmr_err, tmr_faulty, voted_state, tmr_ok,
-                     ecc_err, ecc_corr, ecc_unc, ecc_pos, ecc_state, ecc_ok, attack_detected);
         end
     endtask
 
     initial begin
         $dumpfile("detect.vcd"); $dumpvars(0, testbench);
 
-        current_section = 1;
         $display("=== [1] Fault-free runs: expect NO detection ===");
         reset_fsm(); check_clean("reset");
         step(1,0); check_clean("GOT_1");  step(0,0); check_clean("GOT_10");
@@ -134,47 +103,40 @@ module testbench;
         repeat (5) begin step(0,0); check_clean("wrong PIN"); end
         $display("  wrong PIN   : state=%b access=%b", state_out, access_granted);
 
-        current_section = 2;
         $display("=== [2] All 15 masks injected from IDLE ===");
         $display("  mask  state | DMR PAR TMR(copy) ECC  class        located  corrected");
         for (m = 1; m < 16; m = m + 1) begin
-            goto_state(0); step(1, m[3:0]); check_fault(m[3:0], 0);
+            goto_state(0); step(1, m[3:0]); check_fault(m[3:0]);
             $display("  %b  %b  |  %b   %b   %b(%b)    %b    %-11s  %b     %b",
                      m[3:0], state_out, dmr_err, parity_err, tmr_err, tmr_faulty, ecc_err,
                      ecc_corr ? "1-bit fixed" : "uncorrect.", ecc_pos, ecc_state);
         end
 
-        current_section = 3;
         $display("=== [3] All 15 masks from every state (9 states x 15) ===");
         for (s = 0; s < 9; s = s + 1)
             for (m = 1; m < 16; m = m + 1) begin
                 goto_state(s); check_clean("pre-fault");
-                step(1, m[3:0]); check_fault(m[3:0], s);
+                step(1, m[3:0]); check_fault(m[3:0]);
             end
         $display("  done: %0d faults injected so far", n_faults);
 
-        current_section = 4;
         $display("=== [4] Bypass: LOCKED + mask 0100 -> SUCCESS ===");
         goto_state(8); check_clean("LOCKED");
-        step(0, 4'b0100); check_fault(4'b0100, 8);
+        step(0, 4'b0100); check_fault(4'b0100);
         $display("  attacked: state=%b access=%b | ECC corrected=%b TMR voted=%b",
                  state_out, access_granted, ecc_state, voted_state);
 
-        current_section = 5;
         $display("=== [5] Even-weight bypass: ERR_1 path + mask 1111 -> SUCCESS ===");
-        goto_state(0); step(0, 4'b1111); check_fault(4'b1111, 0);
+        goto_state(0); step(0, 4'b1111); check_fault(4'b1111);
         $display("  attacked: state=%b access=%b | PAR=%b DMR=%b ECC_unc=%b TMR voted=%b",
                  state_out, access_granted, parity_err, dmr_err, ecc_unc, voted_state);
 
-        current_section = 6;
         $display("=== [6] Monte Carlo Randomized Stress Test (50 Iterations) ===");
         for (s = 0; s < 50; s = s + 1) begin
-            reg [3:0] rnd_state;
-            rnd_state = $urandom_range(0, 8);
-            goto_state(rnd_state); 
+            goto_state($urandom_range(0, 8)); 
             m = $urandom_range(1, 15);
             step($urandom_range(0, 1), m[3:0]);
-            check_fault(m[3:0], rnd_state);
+            check_fault(m[3:0]);
         end
       
         $display("\n=== SUMMARY ===");

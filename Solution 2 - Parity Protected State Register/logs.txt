@@ -1,4 +1,4 @@
-x`VCD info: dumpfile fsm_simulation.vcd opened for output.
+VCD info: dumpfile fsm_simulation.vcd opened for output.
 
 =========================================================================
 SCENARIO 1: Correct Password (1 -> 0 -> 1 -> 0) - No Faults (mask=00000)
@@ -70,4 +70,4 @@ Time=395000 ns | in=0 | mask=00000 | state=0011 (P:0, FF:0, OK:1, Meta:0, Alarm:
 >> SCENARIO 5 PASSED: Clean bit-flip on state[2] broke parity invariant => Alarm=1, Access Denied!
 
 All 5 test scenarios completed successfully.
-testbench.sv:170: $finish called at 430000 (1ps)
+C:\Users\Fr3d\OneDrive\Desktop\DLD Project\Solution 2 - Parity Protected State Register\testbench.sv:170: $finish called at 430000 (1ps)

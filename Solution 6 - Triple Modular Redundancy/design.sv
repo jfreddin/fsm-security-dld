@@ -1,8 +1,3 @@
-// =============================================================================
-// Solution 6: Triple Modular Redundancy (TMR) Authentication FSM
-// =============================================================================
-
-// Base Constant-Time 4-bit Sequence Detector Core
 module auth_fsm_core (
     input clk,
     input rst_n,
@@ -54,56 +49,68 @@ module auth_fsm_core (
 
 endmodule
 
-// Top-Level Triple Modular Redundancy (TMR) Module
-module auth_fsm_tmr (
+module auth_fsm (
     input clk,
     input rst_n,
     input auth_in,
-    input [11:0] fault_mask, // [3:0]: FSM1 (A), [7:4]: FSM2 (B), [11:8]: FSM3 (C)
+    input [11:0] fault_mask,
     output access_granted,
-    output auth_A,
-    output auth_B,
-    output auth_C,
-    output [3:0] state_A,
-    output [3:0] state_B,
-    output [3:0] state_C,
-    output disagreement_detected
+    output [3:0] state_out,
+    output [3:0] state_A_out,
+    output [3:0] state_B_out,
+    output [3:0] state_C_out,
+    output auth_A_out,
+    output auth_B_out,
+    output auth_C_out,
+    output disagreement_detected,
+    output metastable_detected
 );
 
-    // Module 1 (A)
-    auth_fsm_core fsm_A (
+    wire [3:0] sA, sB, sC;
+    wire aA, aB, aC;
+
+    auth_fsm_core core_A (
         .clk(clk),
         .rst_n(rst_n),
         .auth_in(auth_in),
         .fault_mask(fault_mask[3:0]),
-        .state_out(state_A),
-        .auth_out(auth_A)
+        .state_out(sA),
+        .auth_out(aA)
     );
 
-    // Module 2 (B)
-    auth_fsm_core fsm_B (
+    auth_fsm_core core_B (
         .clk(clk),
         .rst_n(rst_n),
         .auth_in(auth_in),
         .fault_mask(fault_mask[7:4]),
-        .state_out(state_B),
-        .auth_out(auth_B)
+        .state_out(sB),
+        .auth_out(aB)
     );
 
-    // Module 3 (C)
-    auth_fsm_core fsm_C (
+    auth_fsm_core core_C (
         .clk(clk),
         .rst_n(rst_n),
         .auth_in(auth_in),
         .fault_mask(fault_mask[11:8]),
-        .state_out(state_C),
-        .auth_out(auth_C)
+        .state_out(sC),
+        .auth_out(aC)
     );
 
-    // Majority Voting Logic: AB + BC + AC
-    assign access_granted = (auth_A & auth_B) | (auth_B & auth_C) | (auth_A & auth_C);
+    wire [3:0] voted_state = (sA & sB) | (sB & sC) | (sA & sC);
+    wire voted_auth = (aA & aB) | (aB & aC) | (aA & aC);
 
-    // Diagnostic Disagreement Flag (asserts if any module diverges)
-    assign disagreement_detected = !((state_A == state_B) && (state_B == state_C));
+    wire disagreement  = !((sA == sB) && (sB == sC));
+    wire is_metastable = $isunknown({sA, sB, sC});
+
+    assign state_out              = voted_state;
+    assign state_A_out            = sA;
+    assign state_B_out            = sB;
+    assign state_C_out            = sC;
+    assign auth_A_out             = aA;
+    assign auth_B_out             = aB;
+    assign auth_C_out             = aC;
+    assign disagreement_detected  = disagreement;
+    assign metastable_detected    = is_metastable;
+    assign access_granted         = voted_auth && (!is_metastable);
 
 endmodule
